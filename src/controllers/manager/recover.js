@@ -4,6 +4,7 @@ import { env } from "process";
 import { generateRandomString } from "../../lib/helpers.js";
 import { validateEmail } from "../../lib/validators.js";
 import nodemailer from "nodemailer";
+import oAuth2Client from "../../lib/google.js";
 
 export default async (req, res, next) => {
   try {
@@ -36,17 +37,16 @@ export default async (req, res, next) => {
       expiresIn: Date.now() + 10 * 60 * 1000,
     });
     await rToken.save();
-
+    const accessToken = await oAuth2Client.getAccessToken().catch((err) => {});
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      service: "gmail",
       auth: {
         type: "OAuth2",
         user: env.MAIL_USERNAME,
         clientId: env.OAUTH_CLIENTID,
         clientSecret: env.OAUTH_CLIENT_SECRET,
         refreshToken: env.OAUTH_REFRESH_TOKEN,
+        accessToken: accessToken,
       },
     });
 
@@ -67,7 +67,7 @@ export default async (req, res, next) => {
             `,
     };
 
-    transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
     res.status(200).json({
       message: "Recovery link sent",
     });
